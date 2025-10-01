@@ -191,26 +191,54 @@ create_or_recreate_venv() {
 install_python_packages() {
   # shellcheck disable=SC1090
   source "$VENV_PATH/bin/activate"
-  python -m pip install --upgrade pip setuptools wheel
 
-  # Optional torch selection
-  case "$GPU" in
-    cuda)
-      echo "[info] Installing PyTorch (CUDA 12.1)"
-      python -m pip install --extra-index-url https://download.pytorch.org/whl/cu121 torch torchvision torchaudio || true
-      ;;
-    rocm)
-      echo "[info] Installing PyTorch (ROCm 6.0)"
-      python -m pip install --index-url https://download.pytorch.org/whl/rocm6.0 torch torchvision torchaudio || true
-      ;;
-    cpu|auto|*)
-      : # rely on transitive deps (e.g., sentence-transformers) to pull CPU torch if needed
-      ;;
-  esac
+  # Check if uv is available, otherwise fall back to pip
+  if command_exists uv; then
+    echo "[info] Using uv for package installation"
+    uv pip install --upgrade pip setuptools wheel
 
-  if [[ -f src/config/requirements.txt ]]; then
-    echo "[info] Installing Python requirements"
-    python -m pip install -r src/config/requirements.txt
+    # Optional torch selection
+    case "$GPU" in
+      cuda)
+        echo "[info] Installing PyTorch (CUDA 12.1)"
+        uv pip install --extra-index-url https://download.pytorch.org/whl/cu121 torch torchvision torchaudio || true
+        ;;
+      rocm)
+        echo "[info] Installing PyTorch (ROCm 6.0)"
+        uv pip install --index-url https://download.pytorch.org/whl/rocm6.0 torch torchvision torchaudio || true
+        ;;
+      cpu|auto|*)
+        : # rely on transitive deps (e.g., sentence-transformers) to pull CPU torch if needed
+        ;;
+    esac
+
+    if [[ -f src/config/requirements.txt ]]; then
+      echo "[info] Installing Python requirements with uv"
+      uv pip install -r src/config/requirements.txt
+    fi
+  else
+    echo "[info] uv not found, using pip"
+    python -m pip install --upgrade pip setuptools wheel
+
+    # Optional torch selection
+    case "$GPU" in
+      cuda)
+        echo "[info] Installing PyTorch (CUDA 12.1)"
+        python -m pip install --extra-index-url https://download.pytorch.org/whl/cu121 torch torchvision torchaudio || true
+        ;;
+      rocm)
+        echo "[info] Installing PyTorch (ROCm 6.0)"
+        python -m pip install --index-url https://download.pytorch.org/whl/rocm6.0 torch torchvision torchaudio || true
+        ;;
+      cpu|auto|*)
+        : # rely on transitive deps (e.g., sentence-transformers) to pull CPU torch if needed
+        ;;
+    esac
+
+    if [[ -f src/config/requirements.txt ]]; then
+      echo "[info] Installing Python requirements"
+      python -m pip install -r src/config/requirements.txt
+    fi
   fi
 }
 
